@@ -1,0 +1,20 @@
+[
+  {
+    "universityId": "ontario-tech",
+    "universityName": "Ontario Tech University",
+    "officialWebsite": "https://ontariotechu.ca/",
+    "academicYearTarget": "2026-2027",
+    "sources": [
+      {
+        "url": "https://registrar.ontariotechu.ca/fees-and-payment/domestic-student-tuition/undergraduate-domestic-tuition-2026-2027.php",
+        "title": "Undergraduate domestic tuition",
+        "kind": "html",
+        "discoveredFrom": "manual seed"
+      }
+    ],
+    "discovery": {
+      "status": "example_only"
+    },
+    "manuallyAddedSources": []
+  }
+]
