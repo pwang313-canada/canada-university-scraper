@@ -1,0 +1,75 @@
+name: React Native CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: Validate Expo App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Debug dependency versions
+        run: |
+          node --version
+          npm --version
+          npm ls expo react-native || true
+          node -e "const p=require('./package.json'); console.log('React Native:', p.dependencies['react-native'])"
+          node -e "const l=require('./package-lock.json'); console.log('Lockfile version:', l.lockfileVersion); console.log('Lockfile RN:', l.packages?.['node_modules/react-native']?.version)"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check TypeScript
+        run: npx tsc --noEmit
+
+      - name: Check Expo project
+        run: npx expo-doctor
+
+      - name: Run lint
+        run: npm run lint --if-present
+
+      - name: Prebuild Android APK
+        run: npx expo prebuild --platform android
+
+      - name: Build Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Run Android E2E tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            adb install android/app/build/outputs/apk/release/*.apk
+            maestro test .maestro/
