@@ -1,0 +1,19 @@
+# marker: pyReqV1
+# Python deps for the tuition + OUInfo scraper collection.
+# Scanned from all 43 scripts in the repo (algoma..york + ouinfo + scrape_*).
+
+# Recreate the venv (Git Bash on Windows):
+#   python -m venv .venv
+#   source .venv/Scripts/activate
+#   pip install -r requirements.txt
+# One-time extra for playwright:  playwright install
+# To pin exact versions later:    pip freeze > requirements.lock.txt
+
+beautifulsoup4          # HTML parsing (most tuition scrapers)
+requests                # plain HTTP fetch (several scrapers)
+curl_cffi               # Chrome-TLS impersonation; bypasses Cloudflare on algoma / guelphhumber / saintpaul pages
+pypdf                   # OCAD + Western PDF fee schedules
+playwright              # brock_tuition.py, tuition_scraper*.py (JS-rendered pages)
+rapidfuzz               # tuition_scraper*.py program-name matching
+pandas                  # tuition_scraper*.py output tables
+pdfplumber              # tuition_scraper.py PDF table extraction
