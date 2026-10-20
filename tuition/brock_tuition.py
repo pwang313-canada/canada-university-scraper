@@ -162,6 +162,28 @@ def tuition_key(category_label):
     return "domestic-in-province"
 
 
+def base_program_name(category):
+    """Strip the Domestic/International prefix; it is not the program name."""
+    return re.sub(r"^(Domestic|International)(?:\s*-\s*|\s+)", "", category).strip()
+
+
+def merge_targets(name, key, existing):
+    """Entry names an international figure should fold into.
+
+    Exact stripped-name match wins; otherwise a 'A/B' name splits and each
+    part that matches an existing program gets the figure. Falls back to a
+    standalone entry under the stripped name.
+    """
+    if name in existing:
+        return [name]
+    if key == "international" and "/" in name:
+        parts = [p.strip() for p in name.split("/")]
+        matched = [p for p in parts if p in existing]
+        if matched:
+            return matched
+    return [name]
+
+
 def main():
     out_dir = Path("output")
     out_dir.mkdir(exist_ok=True)
@@ -197,29 +219,66 @@ def main():
         else:
             categories = list(PROGRAMS)
 
-        summaries = []
+        # Phase 1: run the estimator for every category.
+        raw = []  # (category, tuition_key, tuition)
         for category in categories:
-            program_id = slugify(category)
-            print(f"\n=== {program_id} ({category}) ===")
+            print(f"\n=== {slugify(category)} ({category}) ===")
             try:
                 tuition = run_estimator(page, category)
             except Exception as e:
                 print(f"FAILED: {e}")
                 tuition = None
             print(f"Tuition: {tuition}")
-            key = tuition_key(category)
-            entry = {
-                "universityId": "brock",
-                "universityName": "Brock",
-                "programId": program_id,
-                "programName": category,
-                "academicYear": "2026-2027",
-                "tuition": {key: tuition} if tuition else {},
-                "comments": "tuition only (from fees estimator: 5.0 credits, no co-op, no award, no residence)",
-            }
-            summaries.append(entry)
+            raw.append((category, tuition_key(category), tuition))
 
         browser.close()
+
+        # Phase 2: domestic entries first, then fold international figures in
+        # so each program ends up as ONE entry with all categories.
+        by_name = {}
+        summaries = []
+        for category, key, tuition in sorted(
+            raw, key=lambda r: (r[1] == "international", r[0])
+        ):
+            name = base_program_name(category)
+            if key != "international":
+                if name in by_name:
+                    print(f"  warn: duplicate domestic program {name!r} -- merging")
+                    entry = by_name[name]
+                else:
+                    entry = {
+                        "universityId": "brock",
+                        "universityName": "Brock",
+                        "programId": slugify(name),
+                        "programName": name,
+                        "academicYear": "2026-2027",
+                        "tuition": {},
+                        "comments": "tuition only (from fees estimator: 5.0 credits, no co-op, no award, no residence)",
+                    }
+                    by_name[name] = entry
+                    summaries.append(entry)
+                if tuition:
+                    entry["tuition"][key] = tuition
+            else:
+                targets = merge_targets(name, key, by_name)
+                if len(targets) == 1 and targets[0] == name and name not in by_name:
+                    print(f"  standalone international program: {name}")
+                    entry = {
+                        "universityId": "brock",
+                        "universityName": "Brock",
+                        "programId": slugify(name),
+                        "programName": name,
+                        "academicYear": "2026-2027",
+                        "tuition": {key: tuition} if tuition else {},
+                        "comments": "tuition only (from fees estimator: 5.0 credits, no co-op, no award, no residence)",
+                    }
+                    by_name[name] = entry
+                    summaries.append(entry)
+                else:
+                    for t in targets:
+                        if tuition:
+                            by_name[t]["tuition"][key] = tuition
+                        print(f"  folded international into '{t}'")
 
     dest = out_dir / "brock_tuition.json"
     dest.write_text(json.dumps(summaries, indent=2))

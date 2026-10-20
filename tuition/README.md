@@ -17,7 +17,7 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-playwright install chromium
+python -m playwright install chromium
 ```
 
 Copy your existing `universities.json` and `programs.json` into this folder, or run with `--data-dir C:\\android\\ontario-university-planner`.

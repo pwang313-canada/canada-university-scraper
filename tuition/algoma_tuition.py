@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Extract Algoma University tuition only (ignore application fees, ancillary fees, totals)."""
+# algomaFixV1
 
 import json
 import re
@@ -83,22 +84,37 @@ def main():
     def annual(amounts):
         return round(amounts[-1] * 2, 2) if amounts else None
 
-    summary = {
-        "universityId": "algoma",
-        "universityName": "Algoma",
-        "programId": None,
-        "programName": None,
-        "academicYear": "2026-2027",
-        "tuition": {},
-        "comments": "tuition only (annualised from per-term TUITION column x 2)",
-    }
     d, i = annual(domestic), annual(international)
+    tuition = {}
     if d:
-        summary["tuition"]["domestic-in-province"] = d
+        tuition["domestic-in-province"] = d
+        # Algoma publishes a single domestic rate (no OOP differential);
+        # both domestic keys carry it, per the RMC convention.
+        tuition["domestic-out-of-province"] = d
     if i:
-        summary["tuition"]["international"] = i
+        tuition["international"] = i
 
-    print(json.dumps(summary, indent=2))
+    entry = {
+        "universityId": "algoma",
+        "universityName": "Algoma University",
+        "programId": "undergraduate",
+        "programName": "Undergraduate (full-time)",
+        "academicYear": "2026-2027",
+        "tuition": tuition,
+        "comments": (
+            "Flat undergraduate rate; Algoma publishes no per-program breakdown. "
+            "Tuition column only, annualized from per-term Fall 2026 & Winter 2027 x 2; "
+            "ancillary fees excluded. No Ontario/out-of-province differential published, "
+            "so both domestic keys carry the published domestic figure. "
+            "Source: algomau.ca/students/student-accounts/tuition-residence-fees/"
+        ),
+    }
+    import os
+    os.makedirs("output", exist_ok=True)
+    out = os.path.join("output", "algoma_tuition.json")
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump([entry], f, indent=2)
+    print(f"wrote {out}")
 
 
 if __name__ == "__main__":
